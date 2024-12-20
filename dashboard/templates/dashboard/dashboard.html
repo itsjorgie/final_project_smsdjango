@@ -1,0 +1,14 @@
+<h1>Dashboard</h1>
+<h2>Sent Messages</h2>
+<ul>
+    {% for message in sent_messages %}
+        <li>{{ message.user }}: {{ message.message }} at {{ message.timestamp }}</li>
+    {% endfor %}
+</ul>
+
+<h2>Received Messages</h2>
+<ul>
+    {% for message in received_messages %}
+        <li>{{ message.user }}: {{ message.message }} at {{ message.timestamp }}</li>
+    {% endfor %}
+</ul>
