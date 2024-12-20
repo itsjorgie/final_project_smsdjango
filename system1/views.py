@@ -17,12 +17,19 @@ from .serializers import ReceivedMessageSerializer
 # Sending messages
 class SendMessageView(APIView):
     def post(self, request):
-        # Get the message and user from the request
+        # Get the message, user, and token from the request
         message = request.data.get("message")
         user_id = request.data.get("user_id")
-        
-        if not message or not user_id:
-            return Response({"error": "Message and user_id are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Retrieve the token from the request headers or body
+        token = request.headers.get("Authorization")
+        if token and token.startswith("Bearer "):
+            token = token.split("Bearer ")[1]
+        else:
+            token = request.data.get("token")  # Fallback to token in request body
+
+        if not message or not user_id or not token:
+            return Response({"error": "Message, user_id, and token are required"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Find the user
         try:
@@ -40,11 +47,8 @@ class SendMessageView(APIView):
             'user_id': user_id
         }
 
-        # If System 2 requires a token, obtain it (this could be a static token or obtained from login)
-        token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0Njc2Mzg5LCJpYXQiOjE3MzQ2NzQ1ODksImp0aSI6Ijc5ZTE2YTBlYmYwNDQ2ZmRiNDQyMTk2ODIwNDJlMzEwIiwidXNlcl9pZCI6MX0.AR_TrzqfQUXHu_I97iLQ8XrOxRDLHYIAH3RleOqMRXI'  # You need to get the token somehow, either from login or stored
-        
         headers = {
-            'Authorization': f'Bearer {token}'  # Include token in the Authorization header
+            'Authorization': f'Bearer {token}'  # Include the user-provided token in the Authorization header
         }
 
         try:
