@@ -15,46 +15,48 @@ from .serializers import SentMessageSerializer
 import requests
 
 
+# Sending messages
 class SendMessageView(APIView):
     def post(self, request):
-        # Get the message and user from the request
+        # Get the message, user, and token from the request
         message = request.data.get("message")
         user_id = request.data.get("user_id")
-        
-        if not message or not user_id:
-            return Response({"error": "Message and user_id are required"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Find the user in System 2
+        # Retrieve the token from the request headers or body
+        token = request.headers.get("Authorization")
+        if token and token.startswith("Bearer "):
+            token = token.split("Bearer ")[1]
+        else:
+            token = request.data.get("token")  # Fallback to token in request body
+
+        if not message or not user_id or not token:
+            return Response({"error": "Message, user_id, and token are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Find the user
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Save the message in System 2's SentMessage model
+        # Save the message to System 1 SentMessage
         sent_message = SentMessage.objects.create(user=user, message=message)
 
-        # Send the message to System 1 via HTTP POST request
-        system1_url = 'http://127.0.0.1:8001/api/system1/received/'  # Replace with System 1's URL
+        # Send the message to System 2 via an HTTP POST request
+        system2_url = 'http://127.0.0.1:8001/api/system1/received/'  # Replace with System 2's URL
         payload = {
             'message': message,
             'user_id': user_id
         }
 
-        # If System 2 requires a token, obtain it (this could be a static token or obtained from login)
-        # You need to either get the token dynamically or pass the right token here.
-        token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzM0Njc3MzAwLCJpYXQiOjE3MzQ2NzU1MDAsImp0aSI6ImRmOWQzMTliNWMzMjQ3ZGZhMjIzMjYxMmNmZTZlY2Q3IiwidXNlcl9pZCI6Mn0.Z5FVYZAjUNjDNoUmQhLjdNADe0rqrKm4BtFCbrStl1k'  # This should be dynamically acquired
-        
         headers = {
-            'Authorization': f'Bearer {token}',  # Include token in the Authorization header
-            'Content-Type': 'application/json'  # Ensure the content type is application/json
+            'Authorization': f'Bearer {token}'  # Include the user-provided token in the Authorization header
         }
 
         try:
-            # Send the POST request to System 1
-            response = requests.post(system1_url, json=payload, headers=headers)
+            response = requests.post(system2_url, json=payload, headers=headers)
 
             # Debugging logs to check response
-            print(f"Response from System 1: {response.status_code} - {response.text}")
+            print(f"Response from System 2: {response.status_code} - {response.text}")
             
             if response.status_code == 201:
                 return Response({
@@ -63,13 +65,13 @@ class SendMessageView(APIView):
                 }, status=status.HTTP_201_CREATED)
             else:
                 return Response({
-                    "error": f"Failed to send message to System 1: {response.status_code} - {response.text}"
+                    "error": f"Failed to send message to System 2: {response.status_code} - {response.text}"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         except requests.exceptions.RequestException as e:
             # Log if there's an error with the HTTP request
-            print(f"Error sending message to System 1: {str(e)}")
-            return Response({"error": "Failed to send message to System 1"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            print(f"Error sending message to System 2: {str(e)}")
+            return Response({"error": "Failed to send message to System 2"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class ViewSentMessagesView(APIView):
     permission_classes = [IsAuthenticated]
