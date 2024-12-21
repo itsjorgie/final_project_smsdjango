@@ -6,6 +6,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Quick-start development settings - unsuitable for production
 SECRET_KEY = 'django-insecure-nmx4_b=ue4n)p$x$%_ytcfe@y+7(9oo+74!!60l$gadlgwyllm'
+FERNET_SECRET_KEY = "APN77KA6tdiYMx5Xwb4V-PMfSue9z8C9QK6bbMA-pBo="
 
 DEBUG = True
 
