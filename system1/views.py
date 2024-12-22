@@ -28,56 +28,74 @@ from .serializers import ReceivedMessageSerializer
 # Sending messages
 class SendMessageView(APIView):
     def post(self, request):
+        # Extract required data from the POST request
         message = request.data.get("message")
         user_id = request.data.get("user_id")
         token = request.headers.get("Authorization")
 
+        # Extract Bearer token if available
         if token and token.startswith("Bearer "):
             token = token.split("Bearer ")[1]
         else:
-            token = request.data.get("token")
+            token = request.data.get("token")  # Fallback to token in request body
 
+        # Validate inputs
         if not message or not user_id or not token:
-            return Response({"error": "Message, user_id, and token are required"}, status=status.HTTP_400_BAD_REQUEST)
+            # Return error message in HTML
+            return render(request, 'send_message_form.html', {
+                'error': 'Message, user_id, and token are required'
+            })
 
+        # Check if the user exists
         try:
             user = User.objects.get(id=user_id)
         except User.DoesNotExist:
-            return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            return render(request, 'send_message_form.html', {
+                'error': 'User not found'
+            })
 
-        # Encrypt the message before saving
-        encrypted_message = encrypt_message(message)
+        # Encrypt the message
+        try:
+            encrypted_message = encrypt_message(message)
+        except Exception as e:
+            return render(request, 'send_message_form.html', {
+                'error': f'Message encryption failed: {str(e)}'
+            })
 
-        # Save the encrypted message to System 1 SentMessage
+        # Save the encrypted message to the database
         sent_message = SentMessage.objects.create(user=user, message=encrypted_message)
 
-        system2_url = 'http://127.0.0.1:8002/api/system2/received/'
+        # Prepare payload for System 1
+        system1_url = "http://127.0.0.1:8001/api/system1/received/"
         payload = {
-            'message': encrypted_message,  # Send the encrypted message
-            'user_id': user_id
+            "message": encrypted_message,
+            "user_id": user_id,
         }
-
         headers = {
-            'Authorization': f'Bearer {token}'
+            "Authorization": f"Bearer {token}",
         }
 
+        # Send the message to System 1
         try:
-            response = requests.post(system2_url, json=payload, headers=headers)
-            
-            if response.status_code == 201:
-                return Response({
-                    "message": "Message sent and saved successfully",
-                    "message_id": sent_message.id
-                }, status=status.HTTP_201_CREATED)
-            else:
-                return Response({
-                    "error": f"Failed to send message to System 2: {response.status_code} - {response.text}"
-                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
-        except requests.exceptions.RequestException as e:
-            print(f"Error sending message to System 2: {str(e)}")
-            return Response({"error": "Failed to send message to System 2"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            response = requests.post(system1_url, json=payload, headers=headers)
 
+            if response.status_code == 201:
+                # Return success message in HTML
+                return render(request, 'send_message_form.html', {
+                    'success': f'Message sent and saved successfully. Message ID: {sent_message.id}'
+                })
+            else:
+                # Return failure message in HTML
+                return render(request, 'send_message_form.html', {
+                    'error': f'Failed to send message to System 1: {response.status_code} - {response.text}'
+                })
+
+        except requests.exceptions.RequestException as e:
+            # Return error message in HTML for request failure
+            return render(request, 'send_message_form.html', {
+                'error': f'Failed to send message to System 1: {str(e)}'
+            })
+            
 class ViewSentMessagesView(APIView):
     permission_classes = [IsAuthenticated]
 
