@@ -1,19 +1,26 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import ReceivedMessage
-from .serializers import ReceivedMessageSerializer
+from .models import SentMessage
+from .serializers import SentMessageSerializer
 from django.http import HttpResponse
+from django.http import HttpResponseRedirect
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
+from django.shortcuts import render
+from django.shortcuts import redirect
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.http import JsonResponse
+from django.contrib import messages  # For flashing success/error messages
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
-from system2.models import SentMessage
-from .serializers import SentMessageSerializer
-from .utils import decrypt_message, encrypt_message
 import requests
+from .utils import decrypt_message, encrypt_message
+from .models import ReceivedMessage
+from .serializers import ReceivedMessageSerializer
 
 # Sending messages
 class SendMessageView(APIView):
@@ -127,42 +134,154 @@ def home(request):
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
-    def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
-        email = request.data.get("email")
+    def get(self, request):
+        """
+        Render the registration page for GET requests.
+        """
+        return render(request, 'register2.html')
 
-        if not username or not password:
-            return Response({"error": "Username and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        """
+        Handle registration functionality for POST requests.
+        Supports both form-encoded data and JSON data for API use.
+        """
+        # Get registration data from either form or JSON
+        username = request.data.get("username") or request.POST.get("username")
+        password = request.data.get("password") or request.POST.get("password")
+        confirm_password = request.data.get("confirm_password") or request.POST.get("confirm_password")
+        email = request.data.get("email") or request.POST.get("email")
+
+        # Validate input fields
+        if not username or not password or not email or not confirm_password:
+            if request.accepted_renderer.format == 'json':  # API response
+                return Response(
+                    {"error": "All fields (username, password, confirm password, and email) are required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            else:  # HTML response
+                messages.error(request, "All fields (username, password, confirm password, and email) are required.")
+                return redirect('register2')
+
+        if password != confirm_password:
+            if request.accepted_renderer.format == 'json':  # API response
+                return Response(
+                    {"error": "Passwords do not match."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            else:  # HTML response
+                messages.error(request, "Passwords do not match.")
+                return redirect('register2')
 
         if User.objects.filter(username=username).exists():
-            return Response({"error": "Username is already taken"}, status=status.HTTP_400_BAD_REQUEST)
+            if request.accepted_renderer.format == 'json':  # API response
+                return Response(
+                    {"error": "Username is already taken."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            else:  # HTML response
+                messages.error(request, "Username is already taken.")
+                return redirect('register2')
 
-        # Create the user
-        user = User.objects.create_user(username=username, password=password, email=email)
-        user.save()
+        if User.objects.filter(email=email).exists():
+            if request.accepted_renderer.format == 'json':  # API response
+                return Response(
+                    {"error": "Email is already registered."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            else:  # HTML response
+                messages.error(request, "Email is already registered.")
+                return redirect('register2')
 
-        return Response({"message": "User registered successfully"}, status=status.HTTP_201_CREATED)
+        try:
+            # Create the user
+            user = User.objects.create_user(username=username, password=password, email=email)
+            user.save()
+
+            if request.accepted_renderer.format == 'json':  # API response
+                return Response(
+                    {"message": "Registration successful! Please login."},
+                    status=status.HTTP_201_CREATED
+                )
+            else:  # HTML response
+                messages.success(request, "Registration successful! Please login.")
+                return redirect('login2')  # Redirect to the login page after successful registration
+
+        except Exception as e:
+            if request.accepted_renderer.format == 'json':  # API response
+                return Response(
+                    {"error": f"Error occurred: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            else:  # HTML response
+                messages.error(request, f"Error occurred: {str(e)}")
+                return redirect('register2')
 
 
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
+    def get(self, request):
+        """
+        Render the login page for GET requests.
+        """
+        return render(request, 'login2.html')  # Adjust the path as needed
+
     def post(self, request):
-        username = request.data.get("username")
-        password = request.data.get("password")
+ 
+        """
+        Handle login functionality for POST requests.
+        Supports both JSON and form-encoded data.
+        """
+        username = request.data.get("username") or request.POST.get("username")
+        password = request.data.get("password") or request.POST.get("password")
 
         if not username or not password:
-            return Response({"error": "Username and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+            # Handle missing credentials
+            if 'text/html' in request.META.get('HTTP_ACCEPT', ''):  # Browser request
+                messages.error(request, "Username and password are required.")
+                return render(request, 'login2.html')  # Show the login page again
+            else:  # API request
+                return Response(
+                    {"error": "Username and password are required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
+        # Authenticate the user
         user = authenticate(username=username, password=password)
 
+
         if user is None:
-            return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+            # Handle invalid credentials
+            if 'text/html' in request.META.get('HTTP_ACCEPT', ''):  # Browser request
+                messages.error(request, "Invalid username or password. Please try again.")
+                return render(request, 'login2.html')  # Show the login page again
+            else:  # API request
+                return Response(
+                    {"error": "Invalid username or password."},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
 
         # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token)
-        }, status=status.HTTP_200_OK)
+
+        # Check if the request is from a browser (form submission)
+        if 'text/html' in request.META.get('HTTP_ACCEPT', ''):
+            messages.success(request, "Login successful!")
+            return redirect('send-message')  # Redirect to the send-message page
+
+        # For API requests, return the tokens in JSON format
+        return Response(
+            {
+                "message": "Login successful.",
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                },
+                "tokens": {
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token),
+                },
+            },
+            status=status.HTTP_200_OK,
+        )

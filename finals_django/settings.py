@@ -86,6 +86,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'finals_django.wsgi.application'
 
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',  # Correct MySQL backend

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Register</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #ecebde;
+        font-family: "Poppins", sans-serif;
+        margin: 0;
+        padding: 0;
+      }
+      .header,
+      .footer {
+        background-color: #3b1e54;
+        color: white;
+        text-align: center;
+        padding: 15px 0;
+        border-bottom: 3px solid #8dc996;
+      }
+      .footer {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        font-size: 14px;
+        padding: 10px 0;
+      }
+      .header h1 {
+        font-size: 2rem;
+        letter-spacing: 2px;
+      }
+      .register-container {
+        margin-top: 2%;
+        color: #3b1e54;
+      }
+      .card {
+        border-radius: 15px;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      }
+      .card-header {
+        background-color: #ffffff;
+        color: #3b1e54;
+        border-top-left-radius: 15px;
+        border-top-right-radius: 15px;
+        padding: 20px;
+        text-align: center;
+        font-size: 1.8rem;
+        font-weight: 600;
+      }
+      .btn {
+        color: #ecebde;
+        background-color: #3b1e54;
+        border-radius: 30px;
+        padding: 12px 24px;
+        font-size: 1rem;
+        transition: all 0.3s ease-in-out;
+      }
+      .btn:hover {
+        color: #3b1e54;
+        background-color: #8dc996;
+        border-color: #8dc996;
+        transform: scale(1.05);
+      }
+      .form-control {
+        border-radius: 10px;
+        padding: 10px;
+        font-size: 1rem;
+      }
+      .form-label {
+        font-weight: 600;
+      }
+      .card-body {
+        padding: 20px;
+      }
+      .login-link {
+        text-align: center;
+        margin-top: 20px;
+      }
+      .login-link a {
+        color: #3b1e54;
+        font-weight: 600;
+        text-decoration: none;
+      }
+      .login-link a:hover {
+        color: #8dc996;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <div class="header">
+      <h1>Create an Account</h1>
+    </div>
+
+    {% if messages %}
+    <div class="container mt-3">
+      {% for message in messages %}
+      <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Register Form -->
+    <div class="container register-container">
+      <div class="row justify-content-center">
+        <div class="col-md-4">
+          <div class="card shadow">
+            <div class="card-header text-center">
+              <h3>Register</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="/api/system1/register/">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                      <label for="username" class="form-label">Username</label>
+                      <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        class="form-control"
+                        placeholder="Enter your username"
+                        required
+                      />
+                    </div>
+                    <div class="mb-2">
+                      <label for="email" class="form-label">Email</label>
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        class="form-control"
+                        placeholder="Enter your email"
+                        required
+                      />
+                    </div>
+                    <div class="mb-2">
+                      <label for="password" class="form-label">Password</label>
+                      <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        class="form-control"
+                        placeholder="Enter your password"
+                        required
+                      />
+                    </div>
+                    <div class="mb-2">
+                      <label for="confirm_password" class="form-label">Confirm Password</label>
+                      <input
+                        type="password"
+                        id="confirm_password"
+                        name="confirm_password"
+                        class="form-control"
+                        placeholder="Confirm your password"
+                        required
+                      />
+                    </div>
+                    <div class="d-grid">
+                      <button type="submit" class="btn">Register</button>
+                    </div>
+                  </form>                  
+            </div>
+          </div>
+        </div>
+        <p class="text-center">Already have an account? <a href="http://127.0.0.1:8001/api/system1/login/">Login here</a></p>
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <p>&copy; 2024 Your Company. All Rights Reserved.</p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  </body>
+</html>
